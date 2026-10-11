@@ -139,7 +139,9 @@ const server = http.createServer(async (req, res) => {
         '/app.js': 'app.js',
         '/styles.css': 'styles.css',
         '/manifest.webmanifest': 'manifest.webmanifest',
-        '/icon.svg': 'icon.svg'
+        '/icon.svg': 'icon.svg',
+        '/icon-192.png': 'icon-192.png',
+        '/icon-512.png': 'icon-512.png'
       };
       const f = files[u.pathname];
       if (!f) fail(404, 'Não encontrado.');
@@ -148,7 +150,8 @@ const server = http.createServer(async (req, res) => {
         'js': 'text/javascript; charset=utf-8',
         'css': 'text/css; charset=utf-8',
         'webmanifest': 'application/manifest+json',
-        'svg': 'image/svg+xml'
+        'svg': 'image/svg+xml',
+        'png': 'image/png'
       }[f.split('.').pop()]);
       res.end(fs.readFileSync(path.join(__dirname, 'public', f)));
       return;

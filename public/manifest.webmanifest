@@ -1,1 +1,30 @@
-{"name":"GuiaUp","short_name":"GuiaUp","start_url":"/","display":"standalone","background_color":"#f7f7f0","theme_color":"#174c43","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}
+{
+  "name": "GuiaUp — Sua agência conectada em cada destino",
+  "short_name": "GuiaUp",
+  "description": "Viagens em grupo, cronômetro de paradas e passageiros conectados com a marca da sua empresa.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#174c43",
+  "theme_color": "#174c43",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
