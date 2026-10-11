@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#174c43">
+  <title>GuiaUp — Sua agência conectada em cada destino</title>
+  <meta name="description" content="A plataforma para guias de turismo e agências: viagens, cronômetro de paradas e passageiros conectados com a marca da sua empresa.">
+  <link rel="icon" href="/icon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="/" aria-label="GuiaUp início">
+      <span class="brand-icon">↗</span>Guia<span>Up</span>
+    </a>
+    <nav>
+      <button class="nav-link" data-action="home">Explorar viagens</button>
+      <button class="nav-link" data-action="plans-nav">Planos para Guias</button>
+      <button id="my-trip" class="nav-link" data-action="traveler" hidden>Minha viagem</button>
+      <button class="button small" id="guide-button" data-action="guide">Área do guia <span>↗</span></button>
+    </nav>
+  </header>
+
+  <main id="app">
+    <p class="loading">Preparando sua próxima viagem…</p>
+  </main>
+
+  <footer>
+    <a class="brand" href="/">Guia<span>Up</span></a>
+    <p>Tecnologia e conexão para guias de turismo e agências de viagens.</p>
+    <small>© 2026 GuiaUp. Todos os direitos reservados.</small>
+  </footer>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="modal">
+    <button class="close" data-action="close" aria-label="Fechar">×</button>
+    <div id="modal-content"></div>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>
