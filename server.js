@@ -142,6 +142,8 @@ const server = http.createServer(async (req, res) => {
         '/icon.svg': 'icon.svg',
         '/icon-192.png': 'icon-192.png',
         '/icon-512.png': 'icon-512.png',
+        '/privacidade': 'privacidade.html',
+        '/privacidade.html': 'privacidade.html',
         '/.well-known/assetlinks.json': path.join('.well-known', 'assetlinks.json')
       };
       const f = files[u.pathname];
