@@ -1,9 +1,9 @@
 # 🧭 GuiaUp — Dossiê Técnico e Registro Geral do Projeto
 
 > **Documento Oficial de Registro e Continuidade**  
-> Data da última atualização: 12 de outubro de 2026  
-> Status do Aplicativo: **Em análise no Google Play Store (Produção)**  
-> Versão do Pacote: `1.0.0.0` (`1.0.0 - Lançamento Oficial`)  
+> Data da última atualização: 15 de outubro de 2026  
+> Status do Aplicativo: **Publicado e Ativo no Google Play Store (Produção)**  
+> Versão do Sistema: `1.2.0` (`Duas Atividades do Guia, Lote de Passageiros e WhatsApp`)  
 
 ---
 

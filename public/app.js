@@ -17,6 +17,8 @@ let alarmId = null;
 let polling = false;
 let tempLogo = '';
 let tempPhotos = ['', '', ''];
+let guideTab = 'groups';
+let presenceFilter = 'all';
 
 const e = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -442,6 +444,10 @@ async function guide() {
   const isActive = g.subscription_status === 'active';
   const daysLeft = g.trial_days_left ?? 0;
 
+  // Separação das duas atividades: Grupos em Operação vs Expositor de Vendas
+  const groupTrips = trips.filter(t => t.trip_type === 'group' || (!t.trip_type && !t.published) || (!t.trip_type && t.registered > 0));
+  const showcaseTrips = trips.filter(t => t.trip_type === 'showcase' || t.published === 1);
+
   app.innerHTML = `
     <!-- Perfil da Empresa e Status de Assinatura -->
     <div class="guide-profile-badge">
@@ -460,8 +466,8 @@ async function guide() {
     <div class="page-heading">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
         <div>
-          <div class="eyebrow no-bottom">Painel de Controle</div>
-          <h1>Suas Viagens e Grupos</h1>
+          <div class="eyebrow no-bottom">Painel do Guia</div>
+          <h1>Central de Operações & Vendas</h1>
         </div>
         <div style="display:flex;gap:8px;">
           ${button('company-profile', '⚙️ Dados da Empresa & Logo', 'small outline')}
@@ -470,71 +476,148 @@ async function guide() {
       </div>
     </div>
 
-    <div class="banner">
-      <div>
-        <h2>Crie sua próxima excursão.</h2>
-        <p>Defina o destino, datas, valores à vista ou parcelado e adicione até 3 fotos do lugar.</p>
+    <!-- HUB DAS DUAS ATIVIDADES DO GUIA -->
+    <div class="guide-action-hub">
+      <div class="guide-hub-card hub-sold">
+        <div class="hub-card-header">
+          <div class="hub-icon">🚌</div>
+          <div class="hub-card-body">
+            <span class="hub-badge">Operação & Campo</span>
+            <h3>Cadastrar Viagem Já Vendida</h3>
+            <p>Grupo fechado? Cadastre o roteiro, adicione seus passageiros e envie o link de WhatsApp para controle de embarque e paradas no ônibus.</p>
+          </div>
+        </div>
+        <div class="hub-card-footer">
+          <small style="color:#d5e5db;">Chamada digital · Paradas · WhatsApp</small>
+          ${button('new-sold-trip', '+ Viagem Vendida (Grupo)', 'light small')}
+        </div>
       </div>
-      ${button('new-trip', '+ Nova viagem', 'light')}
+
+      <div class="guide-hub-card hub-showcase">
+        <div class="hub-card-header">
+          <div class="hub-icon">📢</div>
+          <div class="hub-card-body">
+            <span class="hub-badge">Vitrine Comercial</span>
+            <h3>Publicar para Venda (Expositor)</h3>
+            <p>Quer vender mais? Exponha suas próximas excursões com fotos reais, datas, valores e opções de parcelamento para novos clientes no app.</p>
+          </div>
+        </div>
+        <div class="hub-card-footer">
+          <small style="color:var(--muted);">Fotos reais · Parcelamento · Visível no app</small>
+          ${button('new-showcase-trip', '+ Publicar para Venda', 'small')}
+        </div>
+      </div>
     </div>
 
+    <!-- Estatísticas Gerais -->
     <div class="stats">
-      <div class="stat"><b>${trips.length}</b><span>Viagens criadas</span></div>
-      <div class="stat"><b>${trips.reduce((a, t) => a + t.registered, 0)}</b><span>Participantes</span></div>
-      <div class="stat"><b>${trips.filter(t => t.published).length}</b><span>Viagens publicadas</span></div>
+      <div class="stat"><b>${groupTrips.length}</b><span>Grupos em Operação</span></div>
+      <div class="stat"><b>${showcaseTrips.length}</b><span>Viagens no Expositor</span></div>
+      <div class="stat"><b>${trips.reduce((a, t) => a + t.registered, 0)}</b><span>Passageiros Cadastrados</span></div>
     </div>
 
-    <div class="panel-title">
-      <h2>Viagens da Agência</h2>
-      ${button('logout', 'Sair da conta', 'small outline')}
-    </div>
-
-    ${trips.length ? trips.map(t => {
-      const datesText = t.date_return ? `${date(t.date)} até ${date(t.date_return)}` : date(t.date);
-      const photoCount = Array.isArray(t.photos) ? t.photos.length : 0;
-      return `
-        <article class="guide-trip">
-          <div>
-            <span class="pill">${t.published ? 'Publicada' : 'Rascunho'}</span>
-            ${photoCount > 0 ? `<span class="pill" style="margin-left:4px;">📷 ${photoCount} ${photoCount === 1 ? 'foto' : 'fotos'}</span>` : ''}
-            <h3 class="spaced-title">${e(t.title)}</h3>
-            <p>${e(t.destination)} · ${datesText} · ${money(t.price)} ${t.installment_text ? `(${e(t.installment_text)})` : ''} · ${t.registered}/${t.capacity} inscritos</p>
-          </div>
-          <div class="guide-trip-actions">
-            ${button('edit-trip', 'Editar', 'small outline', `data-id="${t.id}"`)}
-            ${button('manage', 'Acompanhar grupo ↗', 'small', `data-id="${t.id}"`)}
-          </div>
-        </article>
-      `;
-    }).join('') : `
-      <div class="empty">
-        <h3>Sua primeira viagem está a um clique.</h3>
-        <p>Inclua destino, fotos, datas e valores. A viagem aparece com a marca da sua empresa.</p>
-        ${button('new-trip', '+ Criar primeira viagem', 'small')}
+    <!-- Abas de Navegação -->
+    <div class="guide-tabs">
+      <button class="guide-tab-btn ${guideTab === 'groups' ? 'active' : ''}" data-action="tab-guide-groups">
+        🚌 Grupos em Operação <span class="guide-tab-badge">${groupTrips.length}</span>
+      </button>
+      <button class="guide-tab-btn ${guideTab === 'showcase' ? 'active' : ''}" data-action="tab-guide-showcase">
+        📢 Expositor de Vendas <span class="guide-tab-badge">${showcaseTrips.length}</span>
+      </button>
+      <div style="margin-left:auto;">
+        ${button('logout', 'Sair da conta', 'small outline')}
       </div>
+    </div>
+
+    <!-- CONTEÚDO DA ABA SELECIONADA -->
+    ${guideTab === 'groups' ? `
+      ${groupTrips.length ? groupTrips.map(t => {
+        const datesText = t.date_return ? `${date(t.date)} até ${date(t.date_return)}` : date(t.date);
+        return `
+          <article class="guide-trip">
+            <div style="flex:1;">
+              <span class="pill" style="background:#e3f1e5;color:#205e26;">🚌 Grupo Fechado / Operação</span>
+              <span class="pill" style="margin-left:4px;">👥 ${t.registered}/${t.capacity} passageiros</span>
+              <h3 class="spaced-title">${e(t.title)}</h3>
+              <p>📍 ${e(t.destination)} · 📅 ${datesText} · 🚩 Ponto: ${e(t.meeting)}</p>
+            </div>
+            <div class="guide-trip-actions">
+              ${button('share-group-wa', '📲 Link no WhatsApp', 'small btn-whatsapp', `data-id="${t.id}" data-title="${e(t.title)}"`)}
+              ${button('manage', '🚌 Painel do Ônibus (Chamada & Paradas) ↗', 'small', `data-id="${t.id}"`)}
+              ${button('edit-trip', 'Editar', 'small outline', `data-id="${t.id}" data-type="group"`)}
+            </div>
+          </article>
+        `;
+      }).join('') : `
+        <div class="empty">
+          <h3>Nenhum grupo em operação no momento.</h3>
+          <p>Já tem uma viagem com passageiros confirmados? Cadastre para gerenciar o embarque, a chamada e as paradas do ônibus.</p>
+          <div style="margin-top:14px;">
+            ${button('new-sold-trip', '+ Cadastrar Viagem Já Vendida', 'small')}
+          </div>
+        </div>
+      `}
+    ` : `
+      ${showcaseTrips.length ? showcaseTrips.map(t => {
+        const datesText = t.date_return ? `${date(t.date)} até ${date(t.date_return)}` : date(t.date);
+        const photoCount = Array.isArray(t.photos) ? t.photos.length : 0;
+        return `
+          <article class="guide-trip">
+            <div style="flex:1;">
+              <span class="pill" style="background:#eef6e8;color:#2b6630;">${t.published ? '🟢 Ativa na Vitrine do App' : '⏸️ Pausada no Expositor'}</span>
+              ${photoCount > 0 ? `<span class="pill" style="margin-left:4px;">📷 ${photoCount} ${photoCount === 1 ? 'foto' : 'fotos'}</span>` : ''}
+              <h3 class="spaced-title">${e(t.title)}</h3>
+              <p>📍 ${e(t.destination)} · 📅 ${datesText} · 💰 ${money(t.price)} ${t.installment_text ? `(${e(t.installment_text)})` : ''} · ${t.registered}/${t.capacity} vagas reservadas</p>
+            </div>
+            <div class="guide-trip-actions">
+              ${button('edit-trip', 'Editar Anúncio & Fotos', 'small outline', `data-id="${t.id}" data-type="showcase"`)}
+              ${button('manage', 'Acompanhar Grupo ↗', 'small', `data-id="${t.id}"`)}
+            </div>
+          </article>
+        `;
+      }).join('') : `
+        <div class="empty">
+          <h3>Sua vitrine de vendas está vazia.</h3>
+          <p>Publique suas próximas excursões com fotos reais, datas e opções de parcelamento para atrair clientes no aplicativo.</p>
+          <div style="margin-top:14px;">
+            ${button('new-showcase-trip', '+ Publicar Viagem no Expositor', 'small')}
+          </div>
+        </div>
+      `}
     `}
   `;
 }
 
-function tripForm(t = {}) {
+function tripForm(t = {}, presetType = null) {
+  const type = presetType || t.trip_type || (t.published ? 'showcase' : 'group');
+  const isSold = type === 'group' || type === 'sold';
+
   tempPhotos = ['', '', ''];
   if (Array.isArray(t.photos)) {
     t.photos.slice(0, 3).forEach((p, idx) => { tempPhotos[idx] = p; });
   }
 
   open(`
-    <div class="eyebrow">Organize o próximo encontro</div>
-    <h2>${t.id ? 'Editar viagem' : 'Nova viagem'}</h2>
-    <form id="trip-form" data-id="${e(t.id || '')}">
-      <label for="title">Nome da viagem</label>
-      <input id="title" name="title" value="${e(t.title || '')}" placeholder="Ex: Um fim de semana na Chapada" maxlength="100" required>
+    <div class="eyebrow">${isSold ? '🚌 Operação de Grupo Fechado' : '📢 Expositor de Vendas'}</div>
+    <h2>${t.id ? (isSold ? 'Editar Viagem Vendida' : 'Editar Anúncio no Expositor') : (isSold ? 'Cadastrar Viagem Já Vendida' : 'Publicar Viagem para Venda')}</h2>
+    <p class="hint" style="margin-top:-6px;margin-bottom:18px;">
+      ${isSold
+        ? 'Preencha os dados do roteiro. Ao salvar, você poderá cadastrar os passageiros e enviar os links de WhatsApp para controle do ônibus e paradas.'
+        : 'Adicione fotos reais e opções de parcelamento para divulgar esta viagem no aplicativo e atrair reservas.'}
+    </p>
+
+    <form id="trip-form" data-id="${e(t.id || '')}" data-trip-type="${isSold ? 'group' : 'showcase'}">
+      <input type="hidden" name="trip_type" value="${isSold ? 'group' : 'showcase'}">
+
+      <label for="title">${isSold ? 'Nome da Viagem / Grupo' : 'Título Chamativo do Anúncio'}</label>
+      <input id="title" name="title" value="${e(t.title || '')}" placeholder="${isSold ? 'Ex: Excursão Campos do Jordão - Grupo Fechado' : 'Ex: Fim de Semana Mágico em Campos do Jordão'}" maxlength="100" required>
 
       <label for="destination">Destino</label>
       <input id="destination" name="destination" value="${e(t.destination || '')}" placeholder="Cidade / Estado" maxlength="100" required>
 
       <div class="form-row">
         <div>
-          <label for="date">Data de saída / início</label>
+          <label for="date">Data de saída / embarque</label>
           <input id="date" name="date" type="date" value="${e(t.date || '')}" required>
         </div>
         <div>
@@ -545,40 +628,40 @@ function tripForm(t = {}) {
 
       <div class="form-row">
         <div>
-          <label for="price">Valor à vista por pessoa (R$)</label>
+          <label for="price">Valor por pessoa (R$)</label>
           <input id="price" name="price" type="number" min="0" step="0.01" value="${t.price ?? ''}" placeholder="Ex: 350.00" required>
         </div>
         <div>
-          <label for="installment_text">Opção de parcelamento</label>
-          <input id="installment_text" name="installment_text" value="${e(t.installment_text || '')}" placeholder="Ex: ou 3x de R$ 125 no cartão" maxlength="150">
+          <label for="installment_text">Opção de parcelamento ${isSold ? '(opcional)' : '(destaque de venda)'}</label>
+          <input id="installment_text" name="installment_text" value="${e(t.installment_text || '')}" placeholder="Ex: ou até 3x de R$ 125 no cartão" maxlength="150">
         </div>
       </div>
 
       <div class="form-row">
         <div>
-          <label for="capacity">Número de vagas</label>
-          <input id="capacity" name="capacity" type="number" min="1" max="500" value="${t.capacity || 30}" required>
+          <label for="capacity">Capacidade (Número de vagas / poltronas)</label>
+          <input id="capacity" name="capacity" type="number" min="1" max="500" value="${t.capacity || 46}" required>
         </div>
         <div>
           <label for="meeting">Ponto de encontro e embarque</label>
-          <input id="meeting" name="meeting" value="${e(t.meeting || '')}" maxlength="300" placeholder="Ex: Metrô Tietê às 07h00" required>
+          <input id="meeting" name="meeting" value="${e(t.meeting || '')}" maxlength="300" placeholder="Ex: Metrô Tietê às 06h30" required>
         </div>
       </div>
 
-      <label for="description">O que vamos viver? (Roteiro e detalhes)</label>
-      <textarea id="description" name="description" maxlength="2000" placeholder="Descreva os passeios inclusos, o que levar e informações importantes..." required>${e(t.description || '')}</textarea>
+      <label for="description">Roteiro e Detalhes da Viagem</label>
+      <textarea id="description" name="description" maxlength="2000" placeholder="${isSold ? 'Descreva os horários previstos, passeios inclusos e recomendações para os passageiros...' : 'Descreva os atrativos, o que está incluso, recomendações e encante os futuros participantes...'}" required>${e(t.description || '')}</textarea>
 
       <!-- 3 Slots de Fotos do Destino -->
       <div id="trip-photos-container">
         ${renderTripPhotoSlots()}
       </div>
 
-      <label class="checkbox" style="margin-top:15px;">
-        <input type="checkbox" name="published" ${t.published !== 0 ? 'checked' : ''}>
-        Publicar na página de viagens da agência
+      <label class="checkbox" style="margin-top:18px;">
+        <input type="checkbox" name="published" ${isSold ? (t.published ? 'checked' : '') : (t.published !== 0 ? 'checked' : '')}>
+        ${isSold ? 'Exibir também na vitrine pública do app (se ainda houver vagas sobrando)' : 'Publicar ativamente na vitrine do app para novos clientes'}
       </label>
 
-      ${button('submit', 'Salvar viagem ↗')}
+      ${button('submit', isSold ? (t.id ? 'Salvar Alterações ↗' : 'Salvar e Gerenciar Passageiros ↗') : (t.id ? 'Salvar Anúncio ↗' : 'Publicar no Expositor ↗'))}
     </form>
   `);
 
@@ -641,9 +724,18 @@ function timerPanel() {
       <div class="timer" id="timer" aria-label="Tempo restante">--:--</div>
       <div class="progress"><span id="progress"></span></div>
       <p id="timer-note" class="hint">Quando o guia iniciar uma parada, a contagem aparece aqui.</p>
-      <div class="controls">
-        ${button('sound', sound ? 'Som ativado ✓' : 'Ativar som do alerta', 'small outline', `id="sound-button"`)}
-        ${view === 'traveler' ? button('return', 'Já voltei ao ônibus ✓', 'small', `id="return-button"`) : button('cancel-stop', 'Encerrar parada', 'small outline')}
+      <div class="controls" style="flex-direction:column;gap:12px;align-items:center;">
+        ${view === 'traveler' ? `
+          <button class="btn-passenger-return ${me.participant?.present ? 'confirmed' : ''}" data-action="return" id="return-button">
+            ${me.participant?.present ? '✓ Você confirmou presença no ônibus' : '🟢 JÁ VOLTEI AO ÔNIBUS ✓'}
+          </button>
+          ${button('sound', sound ? 'Som ativado ✓' : 'Ativar som do alerta', 'small outline', 'id="sound-button"')}
+        ` : `
+          <div style="display:flex;gap:10px;">
+            ${button('sound', sound ? 'Som ativado ✓' : 'Ativar som do alerta', 'small outline', 'id="sound-button"')}
+            ${button('cancel-stop', 'Encerrar parada', 'small outline')}
+          </div>
+        `}
       </div>
       <p class="hint">Mantenha esta página aberta e a tela ativa para ouvir o bip.</p>
       <div id="connection" class="status-line" aria-live="polite">Conectando ao grupo…</div>
@@ -656,58 +748,92 @@ async function manage(id) {
   activeId = id;
   state = null;
   participants = [];
+  presenceFilter = 'all';
+
   app.innerHTML = `
-    ${button('guide', '← Suas viagens', 'outline small')}
-    <div class="page-heading">
-      <div class="eyebrow">Acompanhamento do grupo</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:15px;">
+      ${button('guide', '← Voltar ao Painel do Guia', 'outline small')}
+      <div style="display:flex;gap:8px;">
+        ${button('share-group-wa', '📲 Convidar Grupo no WhatsApp', 'small btn-whatsapp', `data-id="${id}"`)}
+        ${button('edit-trip', '⚙️ Dados da Viagem', 'small outline', `data-id="${id}"`)}
+      </div>
+    </div>
+
+    <div class="page-heading" style="margin-top:0;">
+      <div class="eyebrow">🚌 Painel de Bordo & Gestão do Ônibus</div>
       <h1 id="trip-heading">Carregando viagem…</h1>
       <p id="trip-meta" class="muted"></p>
     </div>
+
     <div class="workspace">
       <div>
         ${timerPanel()}
+
         <section class="panel">
-          <h3>Hora de uma pausa</h3>
+          <div class="panel-title">
+            <h3>Hora de uma Pausa Técnica</h3>
+            <span class="pill">Cronômetro do Ônibus</span>
+          </div>
           <form id="stop-form">
             <label for="label">Local ou motivo da parada</label>
-            <input id="label" name="label" value="Parada para descanso" maxlength="200" required>
+            <input id="label" name="label" value="Parada para lanche e banheiro" maxlength="200" required>
             <div class="form-row">
               <div>
-                <label for="minutes">Minutos</label>
-                <input id="minutes" name="minutes" type="number" min="0" max="240" value="15" required>
+                <label for="minutes">Minutos de parada</label>
+                <input id="minutes" name="minutes" type="number" min="0" max="240" value="20" required>
               </div>
               <div>
                 <label for="seconds">Segundos</label>
                 <input id="seconds" name="seconds" type="number" min="0" max="59" value="0" required>
               </div>
             </div>
-            <p class="hint">Ao iniciar, o tempo aparece em todos os celulares conectados.</p>
+            <p class="hint">Ao iniciar, todos os passageiros são marcados fora do ônibus e a contagem regressiva começa em tempo real nos celulares deles.</p>
             ${button('submit', 'Iniciar contagem para o grupo ↗')}
           </form>
         </section>
+
         <section class="panel">
-          <h3>Convide seu grupo</h3>
-          <p class="hint">Compartilhe o link da viagem com os passageiros.</p>
+          <h3>Link de Acesso dos Passageiros</h3>
+          <p class="hint">Envie no WhatsApp do grupo para que qualquer pessoa entre direto no painel da viagem.</p>
           <div class="link-box">
             <input aria-label="Link de inscrição" id="invite-link" readonly value="${e(location.origin + '/?trip=' + id)}">
             ${button('copy', 'Copiar link', 'small outline')}
           </div>
         </section>
       </div>
+
       <div>
         <section class="panel">
-          <div class="panel-title">
-            <h3>Participantes <span class="pill" id="count">0</span></h3>
-            ${button('add-person', '+ Cadastrar', 'small outline')}
+          <div class="panel-title" style="margin-bottom:12px;">
+            <h3>Chamada & Passageiros</h3>
+            <div style="display:flex;gap:6px;">
+              ${button('add-person', '+ Novo', 'small outline')}
+              ${button('batch-add-people', '+ Colar Lista', 'small light')}
+            </div>
           </div>
+
+          <!-- Barra de Status do Ônibus e Filtros de Presença -->
+          <div class="presence-filter-bar">
+            <button class="presence-filter-btn ${presenceFilter === 'all' ? 'active' : ''}" data-action="filter-presence" data-filter="all">
+              Todos (<span id="stat-total">0</span>)
+            </button>
+            <button class="presence-filter-btn ${presenceFilter === 'missing' ? 'active' : ''}" data-action="filter-presence" data-filter="missing">
+              🔴 Ausentes (<span id="stat-missing">0</span>)
+            </button>
+            <button class="presence-filter-btn ${presenceFilter === 'present' ? 'active' : ''}" data-action="filter-presence" data-filter="present">
+              🟢 No ônibus (<span id="stat-present">0</span>)
+            </button>
+          </div>
+
           <div id="people"></div>
         </section>
+
         <section class="panel">
-          <h3>Aviso para todos</h3>
+          <h3>Mural de Avisos Imediatos</h3>
           <form id="message-form">
-            <label for="text">Mensagem do guia</label>
-            <textarea id="text" name="text" placeholder="Pessoal, nosso ponto de encontro é ao lado do ônibus." maxlength="1000" required></textarea>
-            ${button('submit', 'Enviar aviso ↗')}
+            <label for="text">Mensagem do guia para todos os passageiros</label>
+            <textarea id="text" name="text" placeholder="Ex: Pessoal, o ônibus está estacionado na plataforma 3. Saída pontual!" maxlength="1000" required></textarea>
+            ${button('submit', 'Enviar aviso para o grupo ↗')}
           </form>
           <div id="messages"></div>
         </section>
@@ -779,20 +905,46 @@ function drawMessages() {
 function drawPeople() {
   const el = document.querySelector('#people');
   if (!el) return;
-  document.querySelector('#count').textContent = participants.length;
-  el.innerHTML = participants.length ? participants.map(p => `
+
+  const total = participants.length;
+  const presentCount = participants.filter(p => p.present).length;
+  const missingCount = total - presentCount;
+
+  const statTotal = document.querySelector('#stat-total');
+  const statPresent = document.querySelector('#stat-present');
+  const statMissing = document.querySelector('#stat-missing');
+  if (statTotal) statTotal.textContent = total;
+  if (statPresent) statPresent.textContent = presentCount;
+  if (statMissing) statMissing.textContent = missingCount;
+
+  const filtered = participants.filter(p => {
+    if (presenceFilter === 'present') return p.present;
+    if (presenceFilter === 'missing') return !p.present;
+    return true;
+  });
+
+  el.innerHTML = filtered.length ? filtered.map(p => `
     <div class="person">
       <div class="person-avatar">${e(p.name.slice(0, 2).toUpperCase())}</div>
       <div class="person-main">
         <strong>${e(p.name)}</strong>
-        <small>${e(p.phone || 'Sem telefone informado')}</small>
+        <small>${e(p.phone || 'Sem telefone')}</small>
       </div>
-      <button class="presence" data-action="person-link" data-id="${p.id}">Acesso</button>
+      <button class="btn-whatsapp-sm" data-action="person-wa" data-id="${p.id}" data-name="${e(p.name)}" data-phone="${e(p.phone || '')}" title="Enviar link exclusivo pelo WhatsApp">
+        📲 WhatsApp
+      </button>
       <button class="presence ${p.present ? 'yes' : ''}" data-action="presence" data-id="${p.id}" data-present="${p.present ? 0 : 1}">
         ${p.present ? '✓ No ônibus' : 'Confirmar volta'}
       </button>
+      <button class="presence" style="color:var(--red);border-color:#f6c8c8;" data-action="remove-person" data-id="${p.id}" data-name="${e(p.name)}" title="Remover participante">
+        ✕
+      </button>
     </div>
-  `).join('') : '<p class="hint">Compartilhe o link da viagem ou cadastre participantes aqui.</p>';
+  `).join('') : `
+    <div style="text-align:center;padding:25px 15px;color:var(--muted);font-size:13px;">
+      ${participants.length ? 'Nenhum participante nesta categoria de filtro.' : 'Nenhum participante cadastrado ainda. Use "+ Colar Lista" ou envie o link no WhatsApp.'}
+    </div>
+  `;
 }
 
 async function sync() {
@@ -954,10 +1106,113 @@ document.addEventListener('click', async ev => {
       }
     }
     else if (a === 'traveler') await traveler();
+    else if (a === 'tab-guide-groups') {
+      guideTab = 'groups';
+      await guide();
+    }
+    else if (a === 'tab-guide-showcase') {
+      guideTab = 'showcase';
+      await guide();
+    }
+    else if (a === 'new-sold-trip') tripForm({}, 'sold');
+    else if (a === 'new-showcase-trip') tripForm({}, 'showcase');
+    else if (a === 'filter-presence') {
+      presenceFilter = b.dataset.filter || 'all';
+      document.querySelectorAll('.presence-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === presenceFilter);
+      });
+      drawPeople();
+    }
     else if (a === 'new-trip') tripForm();
-    else if (a === 'edit-trip') tripForm(trips.find(t => t.id === b.dataset.id));
+    else if (a === 'edit-trip') {
+      const found = trips.find(t => t.id === b.dataset.id);
+      tripForm(found, b.dataset.type || found?.trip_type);
+    }
     else if (a === 'join') join(b.dataset.id);
     else if (a === 'manage') await manage(b.dataset.id);
+    else if (a === 'share-group-wa') {
+      const tripId = b.dataset.id || activeId;
+      const targetTrip = trips.find(t => t.id === tripId) || state?.trip || {};
+      const company = me.guide?.company_name || 'Nossa Agência';
+      const link = `${location.origin}/?trip=${tripId}`;
+      const msg = `🚌 *Informações da Viagem - ${targetTrip.title || targetTrip.destination || 'Excursão'}*\n\nOlá pessoal! Aqui é da *${company}*.\nNosso painel de bordo já está disponível! Acesse o link abaixo para acompanhar os horários, cronômetro de paradas e confirmar presença:\n\n👉 ${link}`;
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+      open(`
+        <h2>📲 Enviar no Grupo do WhatsApp</h2>
+        <p>Compartilhe o link do painel de bordo com todos os passageiros da viagem.</p>
+        <div class="notice">
+          <strong>Mensagem formatada:</strong><br>
+          <span style="font-size:12px;white-space:pre-wrap;">${e(msg)}</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;">
+          <a href="${waUrl}" target="_blank" class="button btn-whatsapp" style="text-decoration:none;">
+            Abrir WhatsApp e Enviar ↗
+          </a>
+          <button class="button outline" data-action="copy-text" data-text="${e(msg)}">Copiar Mensagem</button>
+        </div>
+      `);
+    }
+    else if (a === 'person-wa') {
+      const pid = b.dataset.id;
+      const pname = b.dataset.name || 'passageiro';
+      const pphone = b.dataset.phone || '';
+      const v = await api('/trips/' + activeId + '/access', 'POST', { id: pid });
+      const link = location.origin + '/?access=' + v.token;
+      const company = me.guide?.company_name || 'Nossa Agência';
+      const dest = state?.trip?.destination || 'Nossa Viagem';
+      const msg = `Olá, *${pname}*! 👋\n\nAqui é da *${company}*. Seu acesso exclusivo ao painel da viagem para *${dest}* está pronto:\n\n👉 ${link}\n\nPor ele você acompanha os avisos do guia, o cronômetro das paradas e confirma seu retorno ao ônibus! Boa viagem! 🚌✨`;
+
+      const cleanPhone = pphone.replace(/\D/g, '');
+      const phoneParam = cleanPhone.length >= 10 ? (cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone) : '';
+      const waUrl = phoneParam
+        ? `https://api.whatsapp.com/send?phone=${phoneParam}&text=${encodeURIComponent(msg)}`
+        : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+      open(`
+        <h2>📲 Enviar Acesso para ${e(pname)}</h2>
+        <p>Envie este link exclusivo no WhatsApp de <b>${e(pname)}</b>. Ele entra direto no painel da viagem sem precisar digitar senha.</p>
+        <div class="notice">
+          <strong>Mensagem pronta:</strong><br>
+          <span style="font-size:12px;white-space:pre-wrap;">${e(msg)}</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;">
+          <a href="${waUrl}" target="_blank" class="button btn-whatsapp" style="text-decoration:none;">
+            ${phoneParam ? 'Enviar no WhatsApp Direto ↗' : 'Abrir WhatsApp e Escolher Contato ↗'}
+          </a>
+          <button class="button outline" data-action="copy-text" data-text="${e(msg)}">Copiar Mensagem</button>
+        </div>
+      `);
+    }
+    else if (a === 'copy-text') {
+      const txt = b.dataset.text;
+      try {
+        await navigator.clipboard.writeText(txt);
+        toast('Mensagem copiada para a área de transferência!');
+      } catch {
+        toast('Selecione e copie o texto acima.');
+      }
+    }
+    else if (a === 'batch-add-people') {
+      open(`
+        <h2>📋 Colar Lista de Passageiros</h2>
+        <p>Cole a lista de passageiros da viagem (um por linha). Se tiver telefone, separe por vírgula ou traço:</p>
+        <form id="batch-person-form">
+          <label for="batchText">Lista (Exemplo: João Silva - 11999998888)</label>
+          <textarea id="batchText" name="batchText" rows="10" placeholder="Ana Paula Ferreira&#10;Carlos Eduardo Souza, 11988887777&#10;Mariana Lima - 21977776666" style="font-family:monospace;font-size:13px;line-height:1.5;" required></textarea>
+          ${button('submit', 'Cadastrar todos na viagem ↗')}
+        </form>
+      `);
+    }
+    else if (a === 'remove-person') {
+      const pid = b.dataset.id;
+      const pname = b.dataset.name || 'este participante';
+      if (confirm(`Remover ${pname} da lista de participantes desta viagem?`)) {
+        await api('/trips/' + activeId + '/participants', 'DELETE', { id: pid });
+        toast(`${pname} foi removido da viagem.`);
+        await sync();
+      }
+    }
     else if (a === 'logout') {
       await api('/logout', 'POST', {});
       await refreshMe();
@@ -988,7 +1243,8 @@ document.addEventListener('click', async ev => {
     }
     else if (a === 'return') {
       await api('/trips/' + activeId + '/presence', 'POST', { id: me.participant.id, present: true });
-      toast('O guia recebeu sua confirmação.');
+      try { if (navigator.vibrate) navigator.vibrate(200); } catch {}
+      toast('Presença confirmada! O guia já sabe que você está no ônibus.');
       await sync();
     }
     else if (a === 'presence') {
@@ -1059,10 +1315,25 @@ document.addEventListener('submit', async ev => {
     else if (form.id === 'trip-form') {
       data.published = form.elements.published.checked;
       data.photos = tempPhotos.filter(p => Boolean(p));
-      await api('/trips' + (form.dataset.id ? '/' + form.dataset.id : ''), form.dataset.id ? 'PATCH' : 'POST', data);
+      data.trip_type = form.dataset.tripType || (data.published ? 'showcase' : 'group');
+      const isNew = !form.dataset.id;
+      const res = await api('/trips' + (form.dataset.id ? '/' + form.dataset.id : ''), form.dataset.id ? 'PATCH' : 'POST', data);
       close();
       toast('Viagem salva com sucesso!');
-      await guide();
+      await loadTrips();
+      if (isNew && data.trip_type === 'group') {
+        await manage(res.id);
+        toast('Viagem vendida cadastrada! Agora você pode cadastrar os passageiros.');
+      } else {
+        guideTab = data.trip_type === 'group' ? 'groups' : 'showcase';
+        await guide();
+      }
+    }
+    else if (form.id === 'batch-person-form') {
+      const res = await api('/trips/' + activeId + '/participants', 'POST', { batchText: data.batchText });
+      close();
+      toast(`${res.count || 'Vários'} passageiros cadastrados com sucesso!`);
+      await sync();
     }
     else if (form.id === 'join-form') {
       data.tripId = form.dataset.id;

@@ -61,6 +61,8 @@ function tripData(b) {
     } catch {}
   }
 
+  const trip_type = b.trip_type === 'showcase' || b.tripType === 'showcase' ? 'showcase' : 'group';
+
   return {
     title,
     destination,
@@ -72,7 +74,8 @@ function tripData(b) {
     description,
     meeting,
     photos,
-    published: b.published === false ? 0 : 1
+    published: b.published === false ? 0 : 1,
+    trip_type
   };
 }
 
@@ -164,7 +167,7 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-    if (!['GET', 'POST', 'PATCH'].includes(req.method)) fail(405, 'Método não permitido.');
+    if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) fail(405, 'Método não permitido.');
     if (req.method !== 'GET' && req.headers.origin) {
       const origin = new URL(req.headers.origin);
       if (origin.host !== req.headers.host) fail(403, 'Origem não autorizada.');
@@ -387,7 +390,7 @@ const server = http.createServer(async (req, res) => {
       const t = tripData(b);
       const id = randomUUID();
       await run(
-        'INSERT INTO trips(id,guide_id,title,destination,date,date_return,price,installment_text,capacity,description,meeting,photos,published) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO trips(id,guide_id,title,destination,date,date_return,price,installment_text,capacity,description,meeting,photos,published,trip_type) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         id,
         s.guide_id || null,
         t.title,
@@ -400,7 +403,8 @@ const server = http.createServer(async (req, res) => {
         t.description,
         t.meeting,
         t.photos,
-        t.published
+        t.published,
+        t.trip_type
       );
       result = { id };
     }
@@ -432,8 +436,8 @@ const server = http.createServer(async (req, res) => {
         const currentCount = await count(id);
         if (v.capacity < currentCount) fail(409, 'Há mais inscritos do que o limite informado.');
         await run(
-          'UPDATE trips SET title=?,destination=?,date=?,date_return=?,price=?,installment_text=?,capacity=?,description=?,meeting=?,photos=?,published=? WHERE id=?',
-          v.title, v.destination, v.date, v.date_return, v.price, v.installment_text, v.capacity, v.description, v.meeting, v.photos, v.published, id
+          'UPDATE trips SET title=?,destination=?,date=?,date_return=?,price=?,installment_text=?,capacity=?,description=?,meeting=?,photos=?,published=?,trip_type=? WHERE id=?',
+          v.title, v.destination, v.date, v.date_return, v.price, v.installment_text, v.capacity, v.description, v.meeting, v.photos, v.published, v.trip_type, id
         );
         result = { ok: true };
       }
@@ -471,7 +475,49 @@ const server = http.createServer(async (req, res) => {
       }
       else if (action === 'participants' && req.method === 'POST') {
         guide(s);
-        result = { id: await addParticipant(t, b) };
+        if (Array.isArray(b.participants)) {
+          const added = [];
+          for (const item of b.participants) {
+            if (item && typeof item.name === 'string' && item.name.trim()) {
+              try {
+                const pid = await addParticipant(t, item);
+                added.push(pid);
+              } catch (err) {
+                if (err.status === 409) break;
+              }
+            }
+          }
+          result = { ids: added, count: added.length };
+        } else if (typeof b.batchText === 'string') {
+          const lines = b.batchText.split('\n').map(l => l.trim()).filter(Boolean);
+          const added = [];
+          for (const line of lines) {
+            let name = line;
+            let phone = '';
+            const match = line.match(/^([^,-]+)[,-]\s*(.+)$/);
+            if (match) {
+              name = match[1].trim();
+              phone = match[2].trim();
+            }
+            try {
+              const pid = await addParticipant(t, { name, phone });
+              added.push(pid);
+            } catch (err) {
+              if (err.status === 409) break;
+            }
+          }
+          result = { ids: added, count: added.length };
+        } else {
+          result = { id: await addParticipant(t, b) };
+        }
+      }
+      else if (action === 'participants' && req.method === 'DELETE') {
+        guide(s);
+        const pid = str(b.id || b.participantId, 50, 'participante');
+        await run('DELETE FROM participant_links WHERE participant_id=?', pid);
+        await run('DELETE FROM sessions WHERE participant_id=?', pid);
+        await run('DELETE FROM participants WHERE id=? AND trip_id=?', pid, id);
+        result = { ok: true };
       }
       else if (action === 'access' && req.method === 'POST') {
         guide(s);

@@ -7,6 +7,33 @@ Requer Node.js 24 ou superior. Zero dependências externas (sem necessidade de `
 
 ---
 
+## Novidades da Versão 1.2
+
+1. **Separação Clara das Duas Atividades do Guia:**
+   * **Atividade 1 — Cadastrar Viagem Já Vendida (Grupo Fechado / Operação):**
+     * O guia cadastra o grupo da viagem fechada com roteiro, datas, ponto de encontro e capacidade.
+     * Foco na operação de campo, lista de passageiros e controle do ônibus.
+   * **Atividade 2 — Publicar para Venda (Expositor Comercial / Vitrine):**
+     * Divulgação de próximas excursões no app com fotos reais, valores e parcelamento para novos clientes.
+   * Abas dedicadas no painel do guia: `[ 🚌 Grupos em Operação ]` e `[ 📢 Expositor de Vendas ]`.
+
+2. **Integração com WhatsApp:**
+   * **Link Exclusivo do Passageiro via WhatsApp:** Ao lado de cada passageiro, o guia clica em `📲 WhatsApp` e envia a mensagem pronta com o link de acesso direto (token seguro válido por 7 dias, sem necessidade de senha).
+   * **Convidar Grupo pelo WhatsApp:** Botão para disparar o convite do painel de bordo diretamente no grupo da viagem.
+
+3. **Cadastro de Passageiros em Lote (Colar Lista):**
+   * O guia pode colar a lista inteira do Excel/Word (um passageiro por linha, formato `Nome - Telefone`) e o sistema cadastra todos instantaneamente.
+
+4. **Painel de Chamada do Ônibus com Filtros Rápidos:**
+   * Durante as paradas técnicas, o guia visualiza em tempo real:
+     * `[ Todos ]`, `[ 🔴 Ausentes ]` (quem falta voltar) e `[ 🟢 No ônibus ]`.
+   * Permite confirmação manual pelo guia ou automática pelo próprio passageiro.
+
+5. **Experiência do Passageiro no Celular:**
+   * Botão destacado e tátil **"🟢 JÁ VOLTEI AO ÔNIBUS ✓"** com vibração e confirmação imediata no painel do guia.
+
+---
+
 ## Novidades da Versão 1.1
 
 1. **Multi-Guias & Multi-Empresas:**

@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "br.com.guiaup.www.twa",
+        "sha256_cert_fingerprints": ["6A:37:DD:45:F8:63:B5:21:51:F1:52:5D:C9:27:FA:1E:FF:BA:20:21:CA:2F:EB:F2:48:8E:80:DF:3A:55:11:CF"]
+      }
+    }]

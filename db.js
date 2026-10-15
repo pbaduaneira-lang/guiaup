@@ -94,7 +94,8 @@ async function initDb() {
       description TEXT NOT NULL,
       meeting TEXT NOT NULL,
       photos TEXT NOT NULL DEFAULT '[]',
-      published INTEGER NOT NULL DEFAULT 1
+      published INTEGER NOT NULL DEFAULT 1,
+      trip_type TEXT NOT NULL DEFAULT 'group'
     );
 
     CREATE TABLE IF NOT EXISTS participants(
@@ -144,7 +145,8 @@ async function initDb() {
     'ALTER TABLE trips ADD COLUMN date_return TEXT DEFAULT ""',
     'ALTER TABLE trips ADD COLUMN installment_text TEXT DEFAULT ""',
     'ALTER TABLE trips ADD COLUMN photos TEXT DEFAULT "[]"',
-    'ALTER TABLE sessions ADD COLUMN guide_id TEXT REFERENCES guides(id)'
+    'ALTER TABLE sessions ADD COLUMN guide_id TEXT REFERENCES guides(id)',
+    'ALTER TABLE trips ADD COLUMN trip_type TEXT DEFAULT "group"'
   ];
 
   for (const m of migrations) {
