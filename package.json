@@ -1,11 +1,11 @@
 {
   "name": "guiaup",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Plataforma de viagens e gestão para guias de turismo e agências",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test --test-concurrency=1 test.js test-company-pro.js test-dual-activities.js"
+    "test": "node --test --test-concurrency=1 test.js test-company-pro.js test-dual-activities.js test-crm-clients.js"
   },
   "engines": {
     "node": ">=24"

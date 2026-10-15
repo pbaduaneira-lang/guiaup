@@ -7,6 +7,24 @@ Requer Node.js 24 ou superior. Zero dependências externas (sem necessidade de `
 
 ---
 
+## Novidades da Versão 1.3
+
+1. **Carteira de Clientes (CRM do Guia):**
+   * Cada guia agora conta com uma **Base de Clientes centralizada e exclusiva**, acessível pela nova aba `[ 👥 Carteira de Clientes ]`.
+   * **Auto-Sincronização Inteligente:** Todo passageiro cadastrado em uma viagem (manualmente, por link de WhatsApp ou colando lista em lote) é salvo e atualizado automaticamente na carteira do guia.
+   * **Reconhecimento de Clientes Fiéis:** O sistema calcula em tempo real o histórico de viagens de cada viajante, exibindo selos visuais como `⭐ Cliente Fiel (X viagens)` ou `🌱 1 viagem realizada`.
+   * **Contato Rápido no WhatsApp:** Botão direto para abrir conversa com o cliente e ofertar novas viagens com 1 toque.
+   * **Busca Instantânea:** Campo de pesquisa em tempo real por nome, telefone ou anotações/preferências.
+
+2. **Inclusão com 1 Clique na Viagem (Puxar da Carteira):**
+   * Dentro do painel de qualquer viagem, o guia conta com o botão `[ 👥 Puxar da Carteira ]`.
+   * Permite selecionar vários clientes cadastrados e importá-los para a viagem instantaneamente, sem precisar redigitar dados. Clientes que já estão no grupo são identificados automaticamente.
+
+3. **Remoção de "Valor por Pessoa" na Viagem Já Vendida:**
+   * No fluxo de **Cadastrar Viagem Já Vendida (Grupo Fechado / Operação)**, os campos de "Valor por pessoa" e "Opções de parcelamento" foram completamente removidos da tela. Como o grupo já está fechado/vendido, o formulário fica 100% focado no que interessa: roteiro, datas, capacidade e ponto de encontro.
+
+---
+
 ## Novidades da Versão 1.2
 
 1. **Separação Clara das Duas Atividades do Guia:**

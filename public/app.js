@@ -19,6 +19,8 @@ let tempLogo = '';
 let tempPhotos = ['', '', ''];
 let guideTab = 'groups';
 let presenceFilter = 'all';
+let clients = [];
+let clientSearch = '';
 
 const e = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -27,6 +29,17 @@ const date = v => {
   return new Date(v + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const button = (action, label, cls = '', extra = '') => `<button class="button ${cls}" data-action="${action}" ${extra}>${label}</button>`;
+
+async function loadClients() {
+  if (me.role !== 'guide') return [];
+  try {
+    clients = await api('/clients');
+    return clients;
+  } catch {
+    clients = [];
+    return [];
+  }
+}
 
 async function api(url, method = 'GET', data) {
   const r = await fetch('/api' + url, {
@@ -439,6 +452,7 @@ async function guide() {
   view = 'guide';
   activeId = null;
   await loadTrips();
+  await loadClients();
   const g = me.guide || {};
   const isTrial = g.subscription_status === 'trial';
   const isActive = g.subscription_status === 'active';
@@ -488,7 +502,7 @@ async function guide() {
           </div>
         </div>
         <div class="hub-card-footer">
-          <small style="color:#d5e5db;">Chamada digital · Paradas · WhatsApp</small>
+          <small style="color:#d5e5db;">Sem cobrança · Paradas · WhatsApp</small>
           ${button('new-sold-trip', '+ Viagem Vendida (Grupo)', 'light small')}
         </div>
       </div>
@@ -513,7 +527,7 @@ async function guide() {
     <div class="stats">
       <div class="stat"><b>${groupTrips.length}</b><span>Grupos em Operação</span></div>
       <div class="stat"><b>${showcaseTrips.length}</b><span>Viagens no Expositor</span></div>
-      <div class="stat"><b>${trips.reduce((a, t) => a + t.registered, 0)}</b><span>Passageiros Cadastrados</span></div>
+      <div class="stat"><b>${clients.length}</b><span>Carteira de Clientes</span></div>
     </div>
 
     <!-- Abas de Navegação -->
@@ -523,6 +537,9 @@ async function guide() {
       </button>
       <button class="guide-tab-btn ${guideTab === 'showcase' ? 'active' : ''}" data-action="tab-guide-showcase">
         📢 Expositor de Vendas <span class="guide-tab-badge">${showcaseTrips.length}</span>
+      </button>
+      <button class="guide-tab-btn ${guideTab === 'clients' ? 'active' : ''}" data-action="tab-guide-clients">
+        👥 Carteira de Clientes <span class="guide-tab-badge">${clients.length}</span>
       </button>
       <div style="margin-left:auto;">
         ${button('logout', 'Sair da conta', 'small outline')}
@@ -557,7 +574,7 @@ async function guide() {
           </div>
         </div>
       `}
-    ` : `
+    ` : (guideTab === 'showcase' ? `
       ${showcaseTrips.length ? showcaseTrips.map(t => {
         const datesText = t.date_return ? `${date(t.date)} até ${date(t.date_return)}` : date(t.date);
         const photoCount = Array.isArray(t.photos) ? t.photos.length : 0;
@@ -584,8 +601,166 @@ async function guide() {
           </div>
         </div>
       `}
-    `}
+    ` : renderClientsList())}
   `;
+}
+
+function renderClientsCards() {
+  const q = (clientSearch || '').trim().toLowerCase();
+  const filtered = clients.filter(c => {
+    if (!q) return true;
+    return (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.notes || '').toLowerCase().includes(q);
+  });
+
+  if (!filtered.length) {
+    if (clients.length === 0) {
+      return `
+        <div class="empty">
+          <h3>Sua carteira de clientes está vazia.</h3>
+          <p>Todos os passageiros que você cadastra nas suas viagens (por formulário ou colando lista) são salvos aqui automaticamente! Você também pode cadastrar novos contatos agora.</p>
+          <div style="margin-top:14px;">
+            ${button('new-client', '+ Cadastrar Primeiro Cliente', 'small')}
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div class="empty">
+        <p>Nenhum cliente encontrado para "<b>${e(clientSearch)}</b>".</p>
+      </div>
+    `;
+  }
+
+  return filtered.map(c => {
+    const initials = (c.name || 'C').split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    const cleanPhone = (c.phone || '').replace(/\D/g, '');
+    const phoneParam = cleanPhone.length >= 10 ? (cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone) : '';
+    const company = me.guide?.company_name || 'Nossa Agência';
+    const waMsg = `Olá, *${c.name}*! Tudo bem? Aqui é da *${company}*. Temos novidades sobre nossas próximas excursões! 🚌✨`;
+    const waUrl = phoneParam
+      ? `https://api.whatsapp.com/send?phone=${phoneParam}&text=${encodeURIComponent(waMsg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(waMsg)}`;
+
+    return `
+      <div class="client-card">
+        <div class="client-avatar">${e(initials)}</div>
+        <div class="client-info">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <strong style="font-size:16px;">${e(c.name)}</strong>
+            ${c.trips_count > 1
+              ? `<span class="client-loyalty-badge frequent">⭐ Cliente Fiel (${c.trips_count} viagens)</span>`
+              : (c.trips_count === 1 ? `<span class="client-loyalty-badge newcomer">🌱 1 viagem realizada</span>` : `<span class="client-loyalty-badge">Cadastrado</span>`)}
+          </div>
+          <div class="client-meta">
+            ${c.phone ? `<span>📞 ${e(c.phone)}</span>` : '<span style="color:var(--muted);">Sem telefone</span>'}
+            ${c.notes ? `<p style="margin:4px 0 0;font-size:12px;color:var(--muted);white-space:pre-wrap;">📝 ${e(c.notes)}</p>` : ''}
+          </div>
+        </div>
+        <div class="client-actions">
+          <a href="${waUrl}" target="_blank" class="button btn-whatsapp small" style="text-decoration:none;">
+            💬 WhatsApp ↗
+          </a>
+          ${button('edit-client', '✏️ Editar', 'small outline', `data-id="${c.id}"`)}
+          ${button('delete-client', '🗑️', 'small outline', `data-id="${c.id}" data-name="${e(c.name)}" title="Excluir cliente"`)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderClientsList() {
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+      <div>
+        <h3 style="margin:0;">Sua Base de Clientes Cadastrados</h3>
+        <p class="hint" style="margin:2px 0 0;">Contatos salvos automaticamente das suas viagens ou cadastrados por você.</p>
+      </div>
+      <div>
+        ${button('new-client', '+ Novo Cliente', 'light small')}
+      </div>
+    </div>
+
+    <input type="text" id="client-search-input" class="client-search-box" placeholder="🔍 Buscar cliente por nome ou telefone..." value="${e(clientSearch)}">
+
+    <div id="clients-container">
+      ${renderClientsCards()}
+    </div>
+  `;
+}
+
+function clientModal(c = {}) {
+  const isEdit = Boolean(c.id);
+  open(`
+    <div class="eyebrow">${isEdit ? 'Editar Dados' : 'Novo Contato'}</div>
+    <h2>${isEdit ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</h2>
+    <p class="hint" style="margin-top:-6px;margin-bottom:18px;">
+      ${isEdit ? 'Atualize as informações do seu cliente na carteira.' : 'Cadastre um cliente para adicioná-lo com rapidez às suas próximas excursões.'}
+    </p>
+
+    <form id="client-form" data-id="${e(c.id || '')}">
+      <label for="client_name">Nome Completo</label>
+      <input id="client_name" name="name" value="${e(c.name || '')}" placeholder="Ex: Maria das Graças Silva" maxlength="100" required>
+
+      <label for="client_phone">WhatsApp / Telefone</label>
+      <input id="client_phone" name="phone" type="tel" value="${e(c.phone || '')}" placeholder="Ex: (11) 98765-4321" maxlength="30">
+
+      <label for="client_notes">Observações / Preferências (Opcional)</label>
+      <textarea id="client_notes" name="notes" placeholder="Ex: Poltrona preferida na frente, restrições alimentares, já viajou para Gramado..." maxlength="500">${e(c.notes || '')}</textarea>
+
+      ${button('submit', isEdit ? 'Salvar Alterações ↗' : 'Salvar na Carteira ↗')}
+    </form>
+  `);
+}
+
+function modalPullClients(tripId) {
+  const existingNames = new Set(participants.map(p => (p.name || '').trim().toLowerCase()));
+  const existingPhones = new Set(participants.map(p => (p.phone || '').trim()).filter(Boolean));
+
+  if (!clients.length) {
+    open(`
+      <h2>👥 Puxar da Carteira</h2>
+      <p>Você ainda não tem clientes cadastrados na carteira.</p>
+      <div style="margin-top:16px;">
+        ${button('new-client', '+ Cadastrar Primeiro Cliente', 'small')}
+      </div>
+    `);
+    return;
+  }
+
+  const items = clients.map(c => {
+    const isAlready = existingNames.has((c.name || '').trim().toLowerCase()) || (c.phone && existingPhones.has(c.phone.trim()));
+    const initials = (c.name || 'C').split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    return `
+      <label class="client-select-item ${isAlready ? 'already-added' : ''}">
+        <input type="checkbox" name="clientId" value="${c.id}" ${isAlready ? 'disabled checked' : ''}>
+        <div class="client-avatar" style="width:34px;height:34px;font-size:12px;">${e(initials)}</div>
+        <div style="flex:1;">
+          <strong>${e(c.name)}</strong> ${isAlready ? '<small style="color:var(--muted);">(Já nesta viagem)</small>' : ''}
+          <div style="font-size:12px;color:var(--muted);">
+            ${c.phone ? e(c.phone) : 'Sem telefone'} · ${c.trips_count > 0 ? `⭐ ${c.trips_count} viagens realizadas` : 'Novo cliente'}
+          </div>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  open(`
+    <div class="eyebrow">Agilidade na Inclusão</div>
+    <h2>👥 Puxar Passageiros da Carteira</h2>
+    <p class="hint" style="margin-top:-6px;margin-bottom:14px;">
+      Marque os clientes que vão nesta viagem para adicioná-los com 1 clique:
+    </p>
+
+    <form id="pull-clients-form" data-trip-id="${tripId}">
+      <div class="client-select-list">
+        ${items}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <span class="muted" style="font-size:12px;">Dica: quem já está na viagem aparece desabilitado.</span>
+        ${button('submit', 'Incluir Selecionados na Viagem ↗', 'btn-whatsapp')}
+      </div>
+    </form>
+  `);
 }
 
 function tripForm(t = {}, presetType = null) {
@@ -626,16 +801,21 @@ function tripForm(t = {}, presetType = null) {
         </div>
       </div>
 
-      <div class="form-row">
-        <div>
-          <label for="price">Valor por pessoa (R$)</label>
-          <input id="price" name="price" type="number" min="0" step="0.01" value="${t.price ?? ''}" placeholder="Ex: 350.00" required>
+      ${isSold ? `
+        <input type="hidden" name="price" value="${t.price ?? 0}">
+        <input type="hidden" name="installment_text" value="">
+      ` : `
+        <div class="form-row">
+          <div>
+            <label for="price">Valor por pessoa (R$)</label>
+            <input id="price" name="price" type="number" min="0" step="0.01" value="${t.price ?? ''}" placeholder="Ex: 350.00" required>
+          </div>
+          <div>
+            <label for="installment_text">Opção de parcelamento (destaque de venda)</label>
+            <input id="installment_text" name="installment_text" value="${e(t.installment_text || '')}" placeholder="Ex: ou até 3x de R$ 125 no cartão" maxlength="150">
+          </div>
         </div>
-        <div>
-          <label for="installment_text">Opção de parcelamento ${isSold ? '(opcional)' : '(destaque de venda)'}</label>
-          <input id="installment_text" name="installment_text" value="${e(t.installment_text || '')}" placeholder="Ex: ou até 3x de R$ 125 no cartão" maxlength="150">
-        </div>
-      </div>
+      `}
 
       <div class="form-row">
         <div>
@@ -806,7 +986,8 @@ async function manage(id) {
         <section class="panel">
           <div class="panel-title" style="margin-bottom:12px;">
             <h3>Chamada & Passageiros</h3>
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${button('pull-clients', '👥 Puxar da Carteira', 'small btn-whatsapp', `data-trip-id="${id}"`)}
               ${button('add-person', '+ Novo', 'small outline')}
               ${button('batch-add-people', '+ Colar Lista', 'small light')}
             </div>
@@ -1114,6 +1295,33 @@ document.addEventListener('click', async ev => {
       guideTab = 'showcase';
       await guide();
     }
+    else if (a === 'tab-guide-clients') {
+      guideTab = 'clients';
+      await guide();
+    }
+    else if (a === 'new-client') {
+      clientModal({});
+    }
+    else if (a === 'edit-client') {
+      const found = clients.find(c => c.id === b.dataset.id);
+      clientModal(found || {});
+    }
+    else if (a === 'delete-client') {
+      const cid = b.dataset.id;
+      const cname = b.dataset.name || 'este cliente';
+      if (confirm(`Remover "${cname}" da sua carteira de clientes?`)) {
+        await api('/clients/' + cid, 'DELETE');
+        toast(`"${cname}" foi removido da carteira.`);
+        await loadClients();
+        const cont = document.querySelector('#clients-container');
+        if (cont) cont.innerHTML = renderClientsCards();
+        else await guide();
+      }
+    }
+    else if (a === 'pull-clients') {
+      if (!clients.length) await loadClients();
+      modalPullClients(b.dataset.tripId || activeId);
+    }
     else if (a === 'new-sold-trip') tripForm({}, 'sold');
     else if (a === 'new-showcase-trip') tripForm({}, 'showcase');
     else if (a === 'filter-presence') {
@@ -1362,10 +1570,48 @@ document.addEventListener('submit', async ev => {
       toast('Participante cadastrado.');
       await sync();
     }
+    else if (form.id === 'client-form') {
+      const cid = form.dataset.id;
+      if (cid) {
+        await api('/clients/' + cid, 'PATCH', data);
+        toast('Dados do cliente atualizados!');
+      } else {
+        await api('/clients', 'POST', data);
+        toast('Cliente adicionado à sua carteira!');
+      }
+      close();
+      await loadClients();
+      if (view === 'guide' && guideTab === 'clients') {
+        const cont = document.querySelector('#clients-container');
+        if (cont) cont.innerHTML = renderClientsCards();
+        else await guide();
+      }
+    }
+    else if (form.id === 'pull-clients-form') {
+      const tripId = form.dataset.tripId || activeId;
+      const checkedBoxes = Array.from(form.querySelectorAll('input[name="clientId"]:checked:not(:disabled)'));
+      const clientIds = checkedBoxes.map(cb => cb.value);
+      if (!clientIds.length) {
+        toast('Nenhum novo cliente selecionado.');
+        return;
+      }
+      const res = await api(`/trips/${tripId}/import-clients`, 'POST', { clientIds });
+      close();
+      toast(`${res.count || clientIds.length} passageiro(s) adicionados à viagem!`);
+      await sync();
+    }
   } catch (err) {
     toast(err.message);
   } finally {
     if (b) b.disabled = false;
+  }
+});
+
+document.addEventListener('input', ev => {
+  if (ev.target.id === 'client-search-input') {
+    clientSearch = ev.target.value.toLowerCase();
+    const cont = document.querySelector('#clients-container');
+    if (cont) cont.innerHTML = renderClientsCards();
   }
 });
 

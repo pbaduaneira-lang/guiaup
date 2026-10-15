@@ -135,6 +135,16 @@ async function initDb() {
       text TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS clients(
+      id TEXT PRIMARY KEY,
+      guide_id TEXT NOT NULL REFERENCES guides(id),
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `;
 
   await exec(ddl);
@@ -146,7 +156,8 @@ async function initDb() {
     'ALTER TABLE trips ADD COLUMN installment_text TEXT DEFAULT ""',
     'ALTER TABLE trips ADD COLUMN photos TEXT DEFAULT "[]"',
     'ALTER TABLE sessions ADD COLUMN guide_id TEXT REFERENCES guides(id)',
-    'ALTER TABLE trips ADD COLUMN trip_type TEXT DEFAULT "group"'
+    'ALTER TABLE trips ADD COLUMN trip_type TEXT DEFAULT "group"',
+    'CREATE TABLE IF NOT EXISTS clients(id TEXT PRIMARY KEY, guide_id TEXT NOT NULL REFERENCES guides(id), name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT "", notes TEXT NOT NULL DEFAULT "", created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)'
   ];
 
   for (const m of migrations) {

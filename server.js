@@ -39,7 +39,10 @@ function tripData(b) {
     : (typeof b.dateReturn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.dateReturn.trim()) ? b.dateReturn.trim() : '');
   const description = str(b.description, 2000, 'descrição');
   const meeting = str(b.meeting, 300, 'ponto de encontro');
-  const price = Number(b.price);
+  const trip_type = b.trip_type === 'showcase' || b.tripType === 'showcase' ? 'showcase' : 'group';
+  const price = trip_type === 'group'
+    ? (b.price !== undefined && b.price !== '' ? Number(b.price) : 0)
+    : Number(b.price || 0);
   const installment_text = typeof b.installment_text === 'string'
     ? b.installment_text.trim().slice(0, 150)
     : (typeof b.installmentText === 'string' ? b.installmentText.trim().slice(0, 150) : '');
@@ -60,8 +63,6 @@ function tripData(b) {
       }
     } catch {}
   }
-
-  const trip_type = b.trip_type === 'showcase' || b.tripType === 'showcase' ? 'showcase' : 'group';
 
   return {
     title,
@@ -106,6 +107,33 @@ async function count(id) {
   return res ? res.n : 0;
 }
 
+async function syncClient(guideId, name, phone = '') {
+  if (!guideId || !name) return;
+  const cleanName = name.trim();
+  const cleanPhone = (phone || '').trim();
+  if (!cleanName) return;
+  try {
+    let existing = null;
+    if (cleanPhone) {
+      existing = await one('SELECT id, phone FROM clients WHERE guide_id=? AND (phone=? OR LOWER(name)=LOWER(?)) LIMIT 1', guideId, cleanPhone, cleanName);
+    } else {
+      existing = await one('SELECT id, phone FROM clients WHERE guide_id=? AND LOWER(name)=LOWER(?) LIMIT 1', guideId, cleanName);
+    }
+    if (existing) {
+      const newPhone = cleanPhone || existing.phone;
+      await run('UPDATE clients SET phone=?, updated_at=? WHERE id=?', newPhone, Date.now(), existing.id);
+    } else {
+      const cid = randomUUID();
+      await run(
+        'INSERT INTO clients(id,guide_id,name,phone,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
+        cid, guideId, cleanName, cleanPhone, '', Date.now(), Date.now()
+      );
+    }
+  } catch (err) {
+    console.error('Erro ao sincronizar cliente:', err);
+  }
+}
+
 async function addParticipant(t, b) {
   const currentCount = await count(t.id);
   if (currentCount >= t.capacity) fail(409, 'Esta viagem está lotada.');
@@ -113,6 +141,9 @@ async function addParticipant(t, b) {
   const name = str(b.name, 100, 'nome');
   const phone = typeof b.phone === 'string' ? b.phone.trim().slice(0, 30) : '';
   await run('INSERT INTO participants(id,trip_id,name,phone) VALUES(?,?,?,?)', id, t.id, name, phone);
+  if (t.guide_id) {
+    await syncClient(t.guide_id, name, phone);
+  }
   return id;
 }
 
@@ -425,8 +456,59 @@ const server = http.createServer(async (req, res) => {
       await issue(res, 'guest', id);
       result = { id };
     }
+    else if (route.startsWith('/api/clients')) {
+      guide(s);
+      if (!s.guide_id) fail(400, 'Guia não vinculado.');
+      const clientMatch = route.match(/^\/api\/clients(?:\/([a-z0-9-]+))?$/);
+      if (!clientMatch) fail(404, 'Rota de clientes não encontrada.');
+      const cid = clientMatch[1];
+
+      if (!cid && req.method === 'GET') {
+        const rows = await q(
+          `SELECT c.*, 
+            (SELECT count(DISTINCT p.trip_id) 
+             FROM participants p 
+             JOIN trips t ON p.trip_id = t.id 
+             WHERE t.guide_id = c.guide_id 
+               AND (LOWER(p.name) = LOWER(c.name) OR (c.phone != '' AND p.phone = c.phone))
+            ) AS trips_count 
+           FROM clients c 
+           WHERE c.guide_id = ? 
+           ORDER BY c.name`,
+          s.guide_id
+        );
+        result = rows;
+      }
+      else if (!cid && req.method === 'POST') {
+        const name = str(b.name, 100, 'nome do cliente');
+        const phone = typeof b.phone === 'string' ? b.phone.trim().slice(0, 30) : '';
+        const notes = typeof b.notes === 'string' ? b.notes.trim().slice(0, 500) : '';
+        const id = randomUUID();
+        await run(
+          'INSERT INTO clients(id,guide_id,name,phone,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
+          id, s.guide_id, name, phone, notes, Date.now(), Date.now()
+        );
+        result = { id, ok: true };
+      }
+      else if (cid && req.method === 'PATCH') {
+        const existing = await one('SELECT id FROM clients WHERE id=? AND guide_id=?', cid, s.guide_id);
+        if (!existing) fail(404, 'Cliente não encontrado.');
+        const name = str(b.name, 100, 'nome do cliente');
+        const phone = typeof b.phone === 'string' ? b.phone.trim().slice(0, 30) : '';
+        const notes = typeof b.notes === 'string' ? b.notes.trim().slice(0, 500) : '';
+        await run('UPDATE clients SET name=?, phone=?, notes=?, updated_at=? WHERE id=? AND guide_id=?', name, phone, notes, Date.now(), cid, s.guide_id);
+        result = { ok: true };
+      }
+      else if (cid && req.method === 'DELETE') {
+        await run('DELETE FROM clients WHERE id=? AND guide_id=?', cid, s.guide_id);
+        result = { ok: true };
+      }
+      else {
+        fail(405, 'Método não permitido.');
+      }
+    }
     else {
-      const m = route.match(/^\/api\/trips\/([a-z0-9-]+)(?:\/(state|participants|stop|messages|presence|access))?$/);
+      const m = route.match(/^\/api\/trips\/([a-z0-9-]+)(?:\/(state|participants|stop|messages|presence|access|import-clients))?$/);
       if (!m) fail(404, 'Operação não encontrada.');
       const id = m[1], t = await getTrip(id), action = m[2];
 
@@ -518,6 +600,23 @@ const server = http.createServer(async (req, res) => {
         await run('DELETE FROM sessions WHERE participant_id=?', pid);
         await run('DELETE FROM participants WHERE id=? AND trip_id=?', pid, id);
         result = { ok: true };
+      }
+      else if (action === 'import-clients' && req.method === 'POST') {
+        guide(s);
+        const clientIds = Array.isArray(b.clientIds) ? b.clientIds : [];
+        let addedCount = 0;
+        for (const clientId of clientIds) {
+          const clientRow = await one('SELECT name, phone FROM clients WHERE id=? AND guide_id=?', clientId, s.guide_id);
+          if (clientRow) {
+            try {
+              await addParticipant(t, { name: clientRow.name, phone: clientRow.phone });
+              addedCount++;
+            } catch (err) {
+              if (err.status === 409) break;
+            }
+          }
+        }
+        result = { ok: true, count: addedCount };
       }
       else if (action === 'access' && req.method === 'POST') {
         guide(s);

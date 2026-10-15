@@ -106,6 +106,28 @@
 .btn-passenger-return:active{transform:scale(.98)}
 .btn-passenger-return.confirmed{background:#e8f7ee;border-color:#27ae60;color:#27ae60}
 
+/* Carteira de Clientes (CRM do Guia) */
+.client-search-box{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin-bottom:18px}
+.client-search-box input{border:0;padding:6px;width:100%;outline:none;font-size:14px}
+.client-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:15px;transition:box-shadow .2s}
+.client-card:hover{box-shadow:0 4px 14px #173c350a}
+.client-main{display:flex;align-items:center;gap:14px;flex:1}
+.client-avatar{width:42px;height:42px;border-radius:10px;background:#e3f1e5;color:#205e26;display:grid;place-items:center;font-weight:700;font-size:15px}
+.client-info strong{display:block;font-size:15px;color:var(--ink)}
+.client-info small{color:var(--muted);font-size:12px}
+.client-loyalty-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;margin-top:4px}
+.client-loyalty-badge.frequent{background:#fef3d6;color:#916c16;border:1px solid #fae19c}
+.client-loyalty-badge.newcomer{background:#eef6e8;color:#2b6630;border:1px solid #d4e8c6}
+.client-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* Lista de Seleção de Clientes para Inclusão na Viagem */
+.client-select-list{max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;margin:15px 0}
+.client-select-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
+.client-select-item:hover{background:#f9faf6}
+.client-select-item:last-child{border-bottom:0}
+.client-select-item.already-added{opacity:.5;cursor:not-allowed;background:#f5f5f5}
+.client-select-item input[type="checkbox"]{width:18px;height:18px;cursor:pointer}
+
 .no-bottom{margin-bottom:0}.section-top.compact{margin-top:12px}.spaced-title{margin-top:12px}.spaced-block{margin-top:24px}.progress span{width:0%}
 
 @media(max-width:900px){header{padding:0 25px}main{padding:25px}nav{gap:12px}.hero{gap:25px}.landscape{min-height:370px}h1{letter-spacing:-2px}.grid{grid-template-columns:repeat(2,1fr)}.how{grid-template-columns:1fr}.workspace{grid-template-columns:1fr}footer{margin:0 25px}.strip{flex-wrap:wrap}.hero-note{font-size:11px}.guide-action-hub{grid-template-columns:1fr}}

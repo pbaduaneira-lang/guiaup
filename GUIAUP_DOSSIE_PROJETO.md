@@ -3,7 +3,7 @@
 > **Documento Oficial de Registro e Continuidade**  
 > Data da última atualização: 15 de outubro de 2026  
 > Status do Aplicativo: **Publicado e Ativo no Google Play Store (Produção)**  
-> Versão do Sistema: `1.2.0` (`Duas Atividades do Guia, Lote de Passageiros e WhatsApp`)  
+> Versão do Sistema: `1.3.0` (`Banco de Dados de Clientes / CRM, Fidelidade, Puxar da Carteira e Otimização de Viagem Vendida`)  
 
 ---
 
@@ -41,7 +41,7 @@ Configuradas na seção de **Acesso ao app** para os avaliadores do Google:
 * **Região:** `aws-sa-east-1` (São Paulo, Brasil — latência ultra baixa)
 * **Endpoint:** `libsql://guiaup-edmiltonluisdefacio.aws-sa-east-1.turso.io`
 * **Token de Autenticação:** Armazenado de forma segura no arquivo `.env` e nas variáveis de ambiente da Vercel (`TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`).
-* **Estrutura das 8 Tabelas:**
+* **Estrutura das 9 Tabelas:**
   1. `settings`: configurações globais e flags do sistema.
   2. `guides`: cadastro de guias e agências (nome, empresa, e-mail, telefone, senha scrypt, logo base64, status da assinatura Pro e data de expiração do teste grátis).
   3. `trips`: viagens cadastradas (título, destino, datas de saída/retorno, preço, parcelamento, vagas, fotos em JSON, ponto de encontro e publicação).
@@ -50,6 +50,7 @@ Configuradas na seção de **Acesso ao app** para os avaliadores do Google:
   6. `stops`: paradas técnicas e refeições com cronômetro sincronizado via timestamp de servidor.
   7. `participant_links`: tokens de acesso individual para passageiros.
   8. `messages`: mural de avisos e comunicados em tempo real do guia.
+  9. `clients`: carteira de clientes e CRM multi-tenant de cada guia (nome, telefone, histórico de viagens calculadas, notas/preferências e auto-sincronização).
 
 ---
 
@@ -58,7 +59,7 @@ Configuradas na seção de **Acesso ao app** para os avaliadores do Google:
 * **GitHub:** `https://github.com/pbaduaneira-lang/guiaup` (Branch principal: `main`)
 * **Deploy Automático:** Todo `git push origin main` compila e atualiza o site na Vercel em segundos.
 * **Testes Automatizados:**  
-  `npm test` executa 2 suites de teste (`test.js` e `test-company-pro.js`) garantindo integridade de permissões, multi-empresa, banco e cronômetro (100% de sucesso).
+  `npm test` executa 4 suites de teste (`test.js`, `test-company-pro.js`, `test-dual-activities.js` e `test-crm-clients.js`) garantindo integridade de permissões, CRM de clientes, auto-sync, fidelidade, multi-empresa, banco e cronômetro (100% de sucesso).
 
 ---
 
