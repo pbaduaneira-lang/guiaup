@@ -62,13 +62,35 @@ function toast(t) {
 
 function open(html) {
   modalContent.innerHTML = html;
-  modal.showModal();
+  if (!modal.open) {
+    modal.showModal();
+  }
+  modal.scrollTop = 0;
+  document.body.classList.add('modal-open');
 }
 
 function close() {
-  modal.close();
+  if (modal.open) {
+    modal.close();
+  }
   modalContent.innerHTML = '';
+  document.body.classList.remove('modal-open');
 }
+
+modal.addEventListener('close', () => {
+  document.body.classList.remove('modal-open');
+});
+
+modal.addEventListener('click', ev => {
+  const rect = modal.getBoundingClientRect();
+  const isInDialog = (
+    rect.top <= ev.clientY && ev.clientY <= rect.top + rect.height &&
+    rect.left <= ev.clientX && ev.clientX <= rect.left + rect.width
+  );
+  if (!isInDialog) {
+    close();
+  }
+});
 
 function processImage(file, maxDim, quality, callback) {
   if (!file || !file.type.startsWith('image/')) {
